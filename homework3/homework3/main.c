@@ -24,49 +24,49 @@ static int p(long value) {
 
 static Element* add_element(long value, Element* next) {
     Element* elem = malloc(sizeof(Element));
-    if (elem == NULL) {
+    if (elem == NULL)
         abort();
-    }
+
     elem->value = value;
     elem->next = next;
     return elem;
 }
 
 static void m(Element* list, void (*f)(long)) {
-    if (list != NULL)
-    {
-        long value = list->value;
-        void* next = list->next;
-        f(value);
-        m(next, f);
-    }
+    if (list == NULL) return;
+
+    long value = list->value;
+    void* next = list->next;
+    f(value);
+    m(next, f);
 }
 
-static Element*  f(Element* list, Element *next, int (*p)(long)) {
-    if (list != NULL)
-    {
-        long value = list->value;
-        if (p(value))
-        {
-            next = add_element(list->value, next);
-        }
-        next = f(list->next, next, p);
-    }
-    return next;
+static void f(Element* list, Element **next, int (*p)(long)) {
+    if (list == NULL) return;
+
+    long value = list->value;
+    if (p(value))
+        *next = add_element(list->value, *next);
+    f(list->next, next, p);
 }
 
 int main() {
     Element* list = NULL;
+
     for (size_t i = 0; i < data_length; i++)
-    {
-        list = add_element(data[i], list);
-    }
+         list = add_element(data[i], list);
+
     m(list, print_int);
+
     puts(empty_str);
+
     Element* result = NULL;
-    result = f(list, result, p);
+    f(list, &result, p);
+
     m(result, print_int);
+
     puts(empty_str);
+
     return 0;
 }
 
