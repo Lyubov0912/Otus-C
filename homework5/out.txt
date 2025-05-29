@@ -1,0 +1,269 @@
+diff --git a/clib.json b/clib.json
+index 8c96302..28ab5f8 100644
+--- a/clib.json
++++ b/clib.json
+@@ -1,46 +1,4 @@
+ {
+-  "name": "clib",
+-  "version": "2.1.14",
+-  "repo": "clibs/clib",
+-  "install": "make clean uninstall build install",
+-  "makefile": "Makefile",
+-  "src": [
+-    "src/clib-configure.c",
+-    "src/clib-init.c",
+-    "src/clib-install.c",
+-    "src/clib-search.c",
+-    "src/clib.c",
+-    "src/version.h",
+-    "Makefile"
+-  ],
+-  "dependencies": {
+-    "stephenmathieson/trim.c": "0.0.2",
+-    "which": "0.1.3",
+-    "stephenmathieson/str-flatten.c": "0.0.4",
+-    "commander": "1.3.2",
+-    "stephenmathieson/wiki-registry.c": "0.0.4",
+-    "stephenmathieson/case.c": "0.1.3",
+-    "jwerle/fs.c": "0.2.0",
+-    "stephenmathieson/str-replace.c": "0.0.6",
+-    "darthtrevino/str-concat": "0.0.2",
+-    "strdup": "*",
+-    "Constellation/console-colors.c": "1.0.1",
+-    "littlstar/asprintf.c": "0.0.3",
+-    "logger": "0.0.1",
+-    "clibs/parson": "1.0.2",
+-    "clibs/http-get.c": "*",
+-    "hash": "0.0.1",
+-    "list": "*",
+-    "stephenmathieson/substr.c": "0.1.2",
+-    "stephenmathieson/mkdirp.c": "0.1.5",
+-    "stephenmathieson/path-join.c": "0.0.6",
+-    "stephenmathieson/parse-repo.c": "1.1.1",
+-    "stephenmathieson/debug.c": "0.0.0",
+-    "stephenmathieson/tempdir.c": "0.0.2",
+-    "isty001/copy": "0.0.0",
+-    "stephenmathieson/rimraf.c": "0.1.0"
+-  },
+-  "development": {
+-    "stephenmathieson/describe.h": "2.0.1"
+-  }
+-}
++  "name": "aaa",
++  "version": "1"
++}
+\ No newline at end of file
+diff --git a/deps/commander/commander.c b/deps/commander/commander.c
+index 8298d1a..24a23e7 100644
+--- a/deps/commander/commander.c
++++ b/deps/commander/commander.c
+@@ -46,9 +46,12 @@ command_help(command_t *self) {
+ 
+   int i;
+   for (i = 0; i < self->option_count; ++i) {
++    int omittedShort = 0;
+     command_option_t *option = &self->options[i];
+-    printf("    %s, %-25s %s\n"
+-      , option->small
++    omittedShort = option->small == NULL;
++    printf("    %s%c %-25s %s\n"
++      , omittedShort ? "  " : option->small
++      , omittedShort ? ' ' : ','
+       , option->large_with_arg
+       , option->description);
+   }
+@@ -207,7 +210,7 @@ command_parse_args(command_t *self, int argc, char **argv) {
+       command_option_t *option = &self->options[j];
+ 
+       // match flag
+-      if (!strcmp(arg, option->small) || !strcmp(arg, option->large)) {
++      if ((option->small != NULL && !strcmp(arg, option->small)) || !strcmp(arg, option->large)) {
+         self->arg = NULL;
+ 
+         // required
+diff --git a/deps/commander/commander.h b/deps/commander/commander.h
+index 141fedf..6f6082c 100644
+--- a/deps/commander/commander.h
++++ b/deps/commander/commander.h
+@@ -24,6 +24,10 @@
+ #define COMMANDER_MAX_ARGS 32
+ #endif
+ 
++#ifdef __cplusplus
++extern "C" {
++namespace commander {
++#endif
+ /*
+  * Command struct.
+  */
+@@ -85,4 +89,8 @@ command_option(command_t *self, const char *small, const char *large, const char
+ void
+ command_parse(command_t *self, int argc, char **argv);
+ 
++#ifdef __cplusplus
++}
++}
++#endif /* __cplusplus */
+ #endif /* COMMANDER_H */
+diff --git a/deps/commander/package.json b/deps/commander/package.json
+index b601ca7..e933702 100644
+--- a/deps/commander/package.json
++++ b/deps/commander/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "commander",
+-  "version": "1.3.2",
++  "version": "1.4.0",
+   "repo": "clibs/commander",
+   "description": "Command-line argument parser",
+   "keywords": ["cli", "command", "parser", "argv", "args", "options"],
+diff --git a/src/clib-build.c b/src/clib-build.c
+index 4372bdb..1b82a73 100644
+--- a/src/clib-build.c
++++ b/src/clib-build.c
+@@ -165,6 +165,7 @@ int build_package_with_manifest_name(const char *dir, const char *file) {
+ 
+     if (json) {
+       root_package = clib_package_new(json, opts.verbose);
++      free(json);
+     }
+ 
+     if (root_package && root_package->prefix) {
+@@ -735,6 +736,10 @@ int main(int argc, char **argv) {
+         free(stats);
+         stats = 0;
+       }
++      if (dep) {
++        free(dep);
++        dep = NULL;
++      }
+     }
+   }
+ 
+diff --git a/src/clib-configure.c b/src/clib-configure.c
+index 079fc4b..6452e43 100644
+--- a/src/clib-configure.c
++++ b/src/clib-configure.c
+@@ -156,6 +156,7 @@ int configure_package_with_manifest_name(const char *dir, const char *file) {
+ 
+     if (json) {
+       root_package = clib_package_new(json, opts.verbose);
++      free(json);
+     }
+ 
+     if (root_package && root_package->prefix) {
+@@ -664,6 +665,10 @@ int main(int argc, char **argv) {
+         free(stats);
+         stats = 0;
+       }
++      if (dep) {
++        free (dep);
++        dep = NULL;
++      }
+     }
+   }
+ 
+diff --git a/src/clib-install.c b/src/clib-install.c
+index 9f7c427..a6b7852 100644
+--- a/src/clib-install.c
++++ b/src/clib-install.c
+@@ -271,6 +271,7 @@ static int install_package(const char *slug) {
+ 
+     if (json) {
+       root_package = clib_package_new(json, opts.verbose);
++      free(json);
+     }
+   }
+ 
+diff --git a/src/clib-search.c b/src/clib-search.c
+index 048fae5..072ae58 100644
+--- a/src/clib-search.c
++++ b/src/clib-search.c
+@@ -106,16 +106,15 @@ set_cache:
+ 
+   debug(&debugger, "setting cache from %s", CLIB_WIKI_URL);
+   http_get_response_t *res = http_get(CLIB_WIKI_URL);
+-  if (!res->ok)
++  if (!res->ok) {
++    http_get_free(res);
+     return NULL;
++  }
+ 
+   char *html = strdup(res->data);
+   if (NULL == html)
+     return NULL;
+-  http_get_free(res);
+ 
+-  if (NULL == html)
+-    return html;
+   clib_cache_save_search(html);
+   debug(&debugger, "wrote cach");
+   return html;
+diff --git a/src/clib-update.c b/src/clib-update.c
+index 95ce10d..3d07556 100644
+--- a/src/clib-update.c
++++ b/src/clib-update.c
+@@ -209,6 +209,7 @@ static int install_package(const char *slug) {
+ 
+     if (json) {
+       root_package = clib_package_new(json, opts.verbose);
++      free (json);
+     }
+   }
+ 
+diff --git a/src/clib-upgrade.c b/src/clib-upgrade.c
+index d3c39d5..7a06ca3 100644
+--- a/src/clib-upgrade.c
++++ b/src/clib-upgrade.c
+@@ -127,6 +127,7 @@ static int install_package(const char *slug) {
+ 
+     if (json) {
+       root_package = clib_package_new(json, opts.verbose);
++      free (json);
+     }
+   }
+ 
+@@ -170,6 +171,9 @@ cleanup:
+   if (0 != extended_slug) {
+     free(extended_slug);
+   }
++  if (0 != tmp){
++    free(tmp);
++  }
+   clib_package_free(pkg);
+   return rc;
+ }
+diff --git a/src/common/clib-package.c b/src/common/clib-package.c
+index 268538e..95065ef 100644
+--- a/src/common/clib-package.c
++++ b/src/common/clib-package.c
+@@ -661,11 +661,14 @@ clib_package_new_from_slug_with_package_name(const char *slug, int verbose,
+ #else
+       res = http_get(json_url);
+ #endif
+-      json = res->data;
++
+       _debug("status: %d", res->status);
+       if (!res || !res->ok) {
++        http_get_free(res);
++        res = NULL;
+         goto download;
+       }
++      json = res->data;
+       log = "fetch";
+     }
+   }
+@@ -996,12 +999,10 @@ cleanup:
+ #ifdef HAVE_PTHREADS
+ static void *fetch_package_file_thread(void *arg) {
+   fetch_package_file_thread_data_t *data = arg;
+-  int *status = malloc(sizeof(int));
+   int rc =
+       fetch_package_file_work(data->pkg, data->dir, data->file, data->verbose);
+-  *status = rc;
+   (void)data->pkg->refs--;
+-  pthread_exit((void *)status);
++  pthread_exit((void *)rc);
+   return (void *)rc;
+ }
+ #endif
