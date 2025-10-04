@@ -88,9 +88,9 @@ static void show_weather()
     }
     else
       if ((strcmp(weather_data.current.fuct, "Patchy rain nearby") == 0)||(strcmp(weather_data.current.fuct, "Light rain") == 0)||(strcmp(weather_data.current.fuct, "Shower in vicinity")==0)
-          ||(strcmp(weather_data.current.fuct, "Light rain shower")==0)||(strcmp(weather_data.current.fuct, "Rain, light drizzle WNW")==0))
+          ||(strcmp(weather_data.current.fuct, "Light rain shower")==0)||(strcmp(weather_data.current.fuct, "Rain, light drizzle WNW")==0)||(strcmp(weather_data.current.fuct, "Drizzle and rain")==0))
       {
-        new_pixbuf = gdk_pixbuf_new_from_file("./pictures/rain.jpg", &error);//patchy_rain_nearby.jpg", &error);
+        new_pixbuf = gdk_pixbuf_new_from_file("./pictures/rain.jpg", &error);
         sprintf(mode,"Местами дождь");
       }
       else
@@ -139,20 +139,26 @@ static void show_weather()
 
 static void get_weather(GtkWidget *widget, gpointer data)
 {
-  char url[100] = "https://wttr.in/";
-  char city[15];
-  strcpy(city,gtk_editable_get_text(GTK_EDITABLE(data)));
-  strcat(url, city);
-  strcat(url, "?format=j1");
+  char url[256];
+  char *city = gtk_editable_get_text(GTK_EDITABLE(data));
+  if (snprintf(url, sizeof(url), "https://wttr.in/%s?format=j1", city) >= sizeof(url))
+  {
+    printf("URL too large\n");
+    return;
+  }
+  printf("%s\n", url);
 
   CURL *p_curl;
 
-  struct memory mem = { 0 };
+
 
   p_curl = curl_easy_init();
   if (NULL == p_curl) {
     (void) fprintf(stderr, "CURL init failed\n");
+    return;
   }
+
+  struct memory mem = { 0 };
 
   abort_on_error(curl_easy_setopt(p_curl, CURLOPT_URL, url));
   abort_on_error(curl_easy_setopt(p_curl, CURLOPT_SSL_VERIFYPEER, 0L));
@@ -164,6 +170,10 @@ static void get_weather(GtkWidget *widget, gpointer data)
   abort_on_error(curl_easy_getinfo(p_curl, CURLINFO_RESPONSE_CODE, &response_code));
   if (response_code != 200) {
     gtk_entry_set_placeholder_text(GTK_ENTRY(text_city), "No such city found!");
+    printf("No such city found! %p\n", mem.response);
+    free(mem.response);
+
+
     return;
   }
 
@@ -182,11 +192,6 @@ static void get_weather(GtkWidget *widget, gpointer data)
 
   cJSON* weather_desc_obj = cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(curr_cond_first, "weatherDesc"), 0), "value");
   memcpy(weather_data.current.fuct, weather_desc_obj->valuestring, sizeof(weather_data.current.fuct));
-
-//   cJSON* weather_desc_array = cJSON_GetObjectItem(curr_cond_first, "weatherDesc");
-//   cJSON* weather_desc_first = cJSON_GetArrayItem(weather_desc_array, 0);
-//   cJSON* weather_desc_obj = cJSON_GetObjectItem(weather_desc_first, "value");
-
 
   cJSON* weather_array = cJSON_GetObjectItem(root, "weather");
   cJSON* weather_first = cJSON_GetArrayItem(weather_array, 0);
@@ -228,20 +233,6 @@ static void activate(GtkApplication *app, gpointer user_data)
   window = gtk_application_window_new(app);
   gtk_window_set_title(GTK_WINDOW(window), "Прогноз погоды");
   gtk_window_fullscreen(GTK_WINDOW(window));
-//  gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
-
-  // GtkWidget *picture = gtk_picture_new();
-  // gtk_picture_set_filename(GTK_PICTURE(picture), "//home//liubov//otus//project//city.jpg");
-  // gtk_picture_set_content_fit(GTK_PICTURE(picture),GTK_CONTENT_FIT_COVER);
-  // gtk_window_set_child(GTK_WINDOW(window), picture);
-  //
-
-
-
-  // GtkCssProvider *provider = gtk_css_provider_new();
-  // gtk_css_provider_load_from_data(provider, "window {background-image: url('/home/liubov/otus/project/city.jpg');background-size: cover;}", -1);
-  // gtk_style_context_add_provider_for_display(gdk_display_get_default(),GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-
 
   // Создаём GtkOverlay
   overlay = gtk_overlay_new();
@@ -256,28 +247,9 @@ static void activate(GtkApplication *app, gpointer user_data)
     return;
   }
 
-  // GError *error = NULL;
-  // GFile *f = g_file_new_for_path("/home/liubov/otus/project/pictures/city.jpg");
-  // GdkTexture *texture = gdk_texture_new_from_file(f, &error);
-  // g_object_unref(f);
-  // if (!texture) {
-  //   g_printerr("Ошибка загрузки изображения: %s\n", error->message);
-  //   g_clear_error(&error);
-  //   return;
-  // }
-
-//  GdkTexture *texture = gdk_texture_new_for_pixbuf(pixbuf);
-
-  // Создаём GtkPicture для отображения изображения
+   // Создаём GtkPicture для отображения изображения
   GtkWidget *picture = gtk_picture_new_for_pixbuf(pixbuf);
   gtk_picture_set_content_fit(GTK_PICTURE(picture), GTK_CONTENT_FIT_COVER);
-//  GtkWidget *picture = gtk_picture_new_for_paintable(GDK_PAINTABLE(texture));
-
-  // Заставим картинку масштабироваться по размеру виджета
-  // gtk_widget_set_hexpand(picture, TRUE);
-  // gtk_widget_set_vexpand(picture, TRUE);
-  // Устанавливаем фильтр масштабирования (опционально)
-//  g_object_set(picture, "stretch", TRUE, NULL);
 
   gtk_overlay_set_child(GTK_OVERLAY(overlay), picture);
 
@@ -305,10 +277,9 @@ static void activate(GtkApplication *app, gpointer user_data)
   // Создаем кнопку
   button_ok = gtk_button_new_with_label("Оk");
 
-  // Подключаем сигнал "clicked" кнопки к функции create_second_window
+  // Подключаем сигнал "clicked" кнопки к функции get_weather
    g_signal_connect(button_ok, "clicked", G_CALLBACK(get_weather), text_city);
 
-  // Добавляем кнопку в контейнер
   gtk_widget_set_size_request(button_ok, 40, 40);
   gtk_widget_set_valign(button_ok, GTK_ALIGN_START);
   gtk_widget_set_halign(button_ok, GTK_ALIGN_START);
@@ -362,7 +333,7 @@ static void activate(GtkApplication *app, gpointer user_data)
 
 
 
-  // Применяем CSS ко всему приложению
+  // Применяем CSS
    GtkStyleContext *context = gtk_widget_get_style_context(label_current);
    gtk_style_context_add_provider(context,
                                               GTK_STYLE_PROVIDER(css_provider),
@@ -384,9 +355,6 @@ static void activate(GtkApplication *app, gpointer user_data)
   // Показываем окно
   gtk_widget_show(GTK_WIDGET(window));
 
-//  g_object_unref(texture);
-
-
 }
 
 int main(int argc, char *argv[]) {
@@ -395,7 +363,7 @@ int main(int argc, char *argv[]) {
   int status;
 
   // Создаем приложение с идентификатором
-  app = gtk_application_new("org.example.gtk4app", G_APPLICATION_DEFAULT_FLAGS);
+  app = gtk_application_new("example.gtk4app", G_APPLICATION_DEFAULT_FLAGS);
   g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
 
   // Запускаем приложение

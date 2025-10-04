@@ -12,7 +12,7 @@ typedef struct day
     char temperature[20];
     char temperature_min[20];
     char temperature_max[20];
-    char fuct[20];
+    char fuct[50];
     char wind[20];
     char precipitation[20];
 }day_t;
